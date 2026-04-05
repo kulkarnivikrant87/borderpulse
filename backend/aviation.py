@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 logger = logging.getLogger("borderpulse.aviation")
 
 # adsb.fi — primary (open public feed, no auth needed)
-# adsb.fi max radius is ~250nm — use 6 overlapping queries to tile South Asia
+# adsb.fi max radius is ~250nm — use 8 overlapping queries to tile South Asia
 ADSBFI_BASE  = "https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/250"
 ADSBFI_CENTRES = [
     (28.0,  70.0),   # NW India / Pakistan
@@ -27,6 +27,8 @@ ADSBFI_CENTRES = [
     (20.0,  63.0),   # Arabian Sea
     (15.0,  88.0),   # Bay of Bengal
     (24.0,  57.0),   # Persian Gulf / Oman
+    (22.0,  80.0),   # Central India (MP, Chhattisgarh, Telangana, Odisha)
+    (22.0,  72.0),   # Gujarat / Mumbai corridor
 ]
 OPENSKY_URL  = "https://opensky-network.org/api/states/all"
 SOUTH_ASIA_BBOX = {"lamin": 5, "lomin": 55, "lamax": 45, "lomax": 105}
@@ -217,7 +219,7 @@ def _parse_opensky(states: list) -> list:
 async def fetch_aviation(client: httpx.AsyncClient) -> list:
     """
     Try adsb.fi first (open public API, works from server IPs).
-    Uses 6 parallel 250nm-radius queries to tile South Asia (adsb.fi max is ~250nm).
+    Uses 8 parallel 250nm-radius queries to tile South Asia (adsb.fi max is ~250nm).
     Falls back to OpenSky Network if all adsb.fi queries fail.
     """
 
