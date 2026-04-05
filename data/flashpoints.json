@@ -1,0 +1,131 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Siachen Glacier",
+        "theatre": "India-Pakistan",
+        "status": "active",
+        "tension": 72,
+        "description": "World's highest militarised zone. Both India and Pakistan maintain forward posts. Frequent supply-line incidents and avalanche casualties.",
+        "last_incident": "2026-03-28",
+        "source": "https://en.wikipedia.org/wiki/Siachen_conflict",
+        "color": "#E63946"
+      },
+      "geometry": { "type": "Point", "coordinates": [77.1, 35.4] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Shaksgam Valley",
+        "theatre": "India-China",
+        "status": "elevated",
+        "tension": 58,
+        "description": "Pakistan-administered territory claimed by India, de facto controlled with Chinese infrastructure investment. Disputed by all three nations.",
+        "last_incident": "2026-03-15",
+        "source": "https://en.wikipedia.org/wiki/Shaksgam_Valley",
+        "color": "#457B9D"
+      },
+      "geometry": { "type": "Point", "coordinates": [76.8, 36.1] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Depsang Plains",
+        "theatre": "India-China",
+        "status": "monitoring",
+        "tension": 44,
+        "description": "Strategically critical high-altitude plateau in Ladakh. Chinese incursions in 2020 blocked Indian access to traditional patrol points.",
+        "last_incident": "2026-02-10",
+        "source": "https://en.wikipedia.org/wiki/Depsang_Plains",
+        "color": "#457B9D"
+      },
+      "geometry": { "type": "Point", "coordinates": [78.0, 34.9] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Galwan Valley",
+        "theatre": "India-China",
+        "status": "stable",
+        "tension": 22,
+        "description": "Site of June 2020 clash that killed 20 Indian and 4+ Chinese soldiers. Buffer zones now in place following disengagement talks.",
+        "last_incident": "2025-11-04",
+        "source": "https://en.wikipedia.org/wiki/2020_Galwan_Valley_skirmish",
+        "color": "#457B9D"
+      },
+      "geometry": { "type": "Point", "coordinates": [73.6, 34.7] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Siliguri Corridor",
+        "theatre": "India-Bangladesh",
+        "status": "elevated",
+        "tension": 51,
+        "description": "22km-wide land corridor connecting Northeast India to the rest of the country. Strategically critical; bordered by Bangladesh, Nepal and Bhutan.",
+        "last_incident": "2026-03-22",
+        "source": "https://en.wikipedia.org/wiki/Siliguri_Corridor",
+        "color": "#F4A261"
+      },
+      "geometry": { "type": "Point", "coordinates": [88.4, 26.7] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Mongla Port",
+        "theatre": "Bangladesh-China",
+        "status": "monitoring",
+        "tension": 35,
+        "description": "Bangladesh's second-largest seaport. China has invested heavily in port infrastructure, raising strategic concerns for India about dual-use potential.",
+        "last_incident": "2026-01-18",
+        "source": "https://en.wikipedia.org/wiki/Mongla_Port",
+        "color": "#F4A261"
+      },
+      "geometry": { "type": "Point", "coordinates": [89.6, 22.5] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Chittagong Port",
+        "theatre": "Bangladesh-China",
+        "status": "monitoring",
+        "tension": 30,
+        "description": "Bangladesh's largest port and economic hub. Significant Chinese port development investment. Indian strategic concern over potential PLA Navy access.",
+        "last_incident": "2025-12-05",
+        "source": "https://en.wikipedia.org/wiki/Chittagong_Port",
+        "color": "#F4A261"
+      },
+      "geometry": { "type": "Point", "coordinates": [91.8, 22.3] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Gwadar Port",
+        "theatre": "Pakistan-China",
+        "status": "monitoring",
+        "tension": 40,
+        "description": "Centrepiece of China-Pakistan Economic Corridor (CPEC). Deep-water port with potential dual civilian-military use. Strategically positioned near Strait of Hormuz.",
+        "last_incident": "2026-02-28",
+        "source": "https://en.wikipedia.org/wiki/Gwadar_Port",
+        "color": "#E63946"
+      },
+      "geometry": { "type": "Point", "coordinates": [62.3, 25.1] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Strait of Hormuz",
+        "theatre": "Naval",
+        "status": "active",
+        "tension": 65,
+        "description": "Critical global oil chokepoint. Approximately 20% of global petroleum transits here. Iranian, US, and Pakistani naval assets regularly operate in proximity.",
+        "last_incident": "2026-04-01",
+        "source": "https://en.wikipedia.org/wiki/Strait_of_Hormuz",
+        "color": "#2EC4B6"
+      },
+      "geometry": { "type": "Point", "coordinates": [56.5, 26.6] }
+    }
+  ]
+}

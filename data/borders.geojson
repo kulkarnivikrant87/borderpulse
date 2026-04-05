@@ -1,0 +1,192 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "loc",
+        "name": "Line of Control (LoC)",
+        "theatre": "India-Pakistan",
+        "description": "De facto border between India and Pakistan in Jammu & Kashmir. Approximately 776km long. Established by the Simla Agreement (1972).",
+        "stroke": "#E63946",
+        "fill": "rgba(230,57,70,0.12)",
+        "strokeWidth": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [73.9, 36.8],
+          [74.5, 37.1],
+          [75.2, 37.0],
+          [76.0, 36.9],
+          [76.8, 36.6],
+          [77.3, 36.2],
+          [77.8, 35.8],
+          [78.2, 35.5],
+          [78.4, 34.9],
+          [78.0, 34.5],
+          [77.6, 33.8],
+          [77.2, 33.4],
+          [76.6, 33.1],
+          [75.9, 32.8],
+          [75.3, 32.5],
+          [74.6, 32.6],
+          [74.0, 32.9],
+          [73.6, 33.4],
+          [73.4, 34.0],
+          [73.3, 34.6],
+          [73.5, 35.3],
+          [73.8, 36.0],
+          [73.9, 36.8]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "lac",
+        "name": "Line of Actual Control (LAC)",
+        "theatre": "India-China",
+        "description": "De facto border between India and China spanning approximately 3,488km. Divided into Western (Ladakh), Middle (Himachal/Uttarakhand), and Eastern (Arunachal) sectors.",
+        "stroke": "#457B9D",
+        "fill": "rgba(69,123,157,0.12)",
+        "strokeWidth": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [76.5, 35.5],
+          [77.5, 35.8],
+          [78.5, 35.6],
+          [79.2, 34.9],
+          [79.8, 34.2],
+          [80.2, 33.5],
+          [80.8, 32.8],
+          [81.5, 31.9],
+          [82.3, 31.2],
+          [83.2, 30.5],
+          [84.0, 29.8],
+          [85.2, 29.3],
+          [86.5, 28.8],
+          [87.5, 28.2],
+          [88.5, 27.8],
+          [89.5, 27.4],
+          [91.0, 27.2],
+          [92.0, 27.0],
+          [93.0, 27.3],
+          [94.0, 27.5],
+          [95.5, 27.8],
+          [96.5, 28.3],
+          [97.3, 28.2],
+          [97.5, 27.5],
+          [96.8, 27.0],
+          [95.5, 27.0],
+          [94.2, 26.8],
+          [93.0, 26.5],
+          [91.5, 26.6],
+          [90.2, 26.8],
+          [88.8, 27.0],
+          [87.5, 27.5],
+          [86.2, 27.8],
+          [85.0, 28.4],
+          [83.8, 29.0],
+          [82.8, 29.6],
+          [82.0, 30.4],
+          [81.2, 31.0],
+          [80.5, 31.8],
+          [79.8, 32.5],
+          [79.2, 33.2],
+          [78.5, 33.8],
+          [77.8, 34.5],
+          [77.0, 35.0],
+          [76.5, 35.5]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "india-bangladesh",
+        "name": "India-Bangladesh Border",
+        "theatre": "India-Bangladesh",
+        "description": "4,156km land border — one of the world's longest. Runs through West Bengal, Assam, Meghalaya, Tripura and Mizoram on the Indian side.",
+        "stroke": "#F4A261",
+        "fill": "rgba(244,162,97,0.10)",
+        "strokeWidth": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.1, 26.4],
+          [88.5, 26.2],
+          [89.0, 26.0],
+          [89.8, 25.8],
+          [90.5, 25.6],
+          [91.2, 25.2],
+          [91.8, 24.8],
+          [92.3, 24.3],
+          [92.6, 23.7],
+          [92.8, 23.2],
+          [92.5, 22.8],
+          [92.1, 22.5],
+          [91.8, 22.0],
+          [91.5, 21.8],
+          [91.2, 21.9],
+          [91.0, 22.3],
+          [90.8, 22.8],
+          [90.5, 23.2],
+          [90.0, 23.6],
+          [89.5, 24.0],
+          [89.0, 24.4],
+          [88.6, 24.8],
+          [88.2, 25.2],
+          [88.0, 25.8],
+          [88.1, 26.4]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bay-of-bengal",
+        "name": "Bay of Bengal / Arabian Sea Naval Zone",
+        "theatre": "Naval",
+        "description": "Strategic maritime zone encompassing Bay of Bengal, Arabian Sea approaches, and Indian Ocean. Critical for energy security — major oil shipping routes transit here.",
+        "stroke": "#2EC4B6",
+        "fill": "rgba(46,196,182,0.08)",
+        "strokeWidth": 1.5
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [55.0, 28.0],
+          [63.0, 25.0],
+          [66.0, 22.0],
+          [68.0, 18.0],
+          [70.0, 15.0],
+          [72.0, 10.0],
+          [75.0, 6.0],
+          [80.0, 4.0],
+          [85.0, 4.0],
+          [90.0, 5.0],
+          [95.0, 8.0],
+          [98.0, 12.0],
+          [98.0, 16.0],
+          [95.0, 20.0],
+          [92.0, 22.0],
+          [88.0, 24.0],
+          [84.0, 22.0],
+          [80.0, 18.0],
+          [76.0, 15.0],
+          [73.0, 18.0],
+          [70.0, 22.0],
+          [67.0, 24.0],
+          [64.0, 23.0],
+          [60.0, 24.0],
+          [56.0, 26.0],
+          [55.0, 28.0]
+        ]]
+      }
+    }
+  ]
+}

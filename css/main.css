@@ -1,0 +1,199 @@
+/* ============================================================
+   BORDER PULSE — main.css
+   Design system variables, resets, and base styles
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500&family=Rajdhani:wght@600&display=swap');
+
+/* ── Colour Palette ────────────────────────────────────────── */
+:root {
+  --bg-primary:     #0A0F1A;
+  --bg-secondary:   #111827;
+  --bg-tertiary:    #1C2537;
+  --accent-red:     #E63946;
+  --accent-blue:    #457B9D;
+  --accent-amber:   #F4A261;
+  --accent-green:   #2EC4B6;
+  --text-primary:   #E8EDF4;
+  --text-secondary: #8899AA;
+  --text-muted:     #445566;
+  --border:         #1E2D40;
+  --border-bright:  #2C4A6E;
+
+  /* Theatre colours */
+  --theatre-loc:        #E63946;
+  --theatre-lac:        #457B9D;
+  --theatre-bangladesh: #F4A261;
+  --theatre-naval:      #2EC4B6;
+
+  /* Tension zone colours */
+  --tension-stable:   #2EC4B6;
+  --tension-warning:  #F4A261;
+  --tension-high:     #E63946;
+  --tension-critical: #E63946;
+
+  /* Spacing */
+  --gutter: 16px;
+
+  /* Topbar / ticker heights */
+  --topbar-height:  56px;
+  --ticker-height:  40px;
+  --sidebar-width:  280px;
+  --rightpanel-width: 320px;
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ── Typography ─────────────────────────────────────────────── */
+.font-display   { font-family: 'Orbitron', monospace; }
+.font-data      { font-family: 'JetBrains Mono', monospace; }
+.font-body      { font-family: 'Inter', sans-serif; }
+.font-classified { font-family: 'Rajdhani', sans-serif; letter-spacing: 0.08em; }
+
+h1, h2, h3 {
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-blue); }
+
+/* ── Utility ────────────────────────────────────────────────── */
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+.text-red       { color: var(--accent-red); }
+.text-blue      { color: var(--accent-blue); }
+.text-amber     { color: var(--accent-amber); }
+.text-green     { color: var(--accent-green); }
+
+.bg-secondary { background-color: var(--bg-secondary); }
+.bg-tertiary  { background-color: var(--bg-tertiary); }
+
+.border-bottom { border-bottom: 1px solid var(--border); }
+.border-top    { border-top: 1px solid var(--border); }
+
+.uppercase     { text-transform: uppercase; }
+.tracking-wide { letter-spacing: 0.08em; }
+.tracking-wider { letter-spacing: 0.14em; }
+
+.flex          { display: flex; }
+.flex-col      { flex-direction: column; }
+.items-center  { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-8         { gap: 8px; }
+.gap-12        { gap: 12px; }
+
+.w-full  { width: 100%; }
+.h-full  { height: 100%; }
+.hidden  { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+/* ── Panel Base ────────────────────────────────────────────── */
+.panel {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--bg-tertiary);
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+}
+
+.panel-body {
+  padding: 12px 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ── Alert Banner ────────────────────────────────────────────── */
+#alert-banner {
+  display: none;
+  position: fixed;
+  top: var(--topbar-height);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--accent-red);
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 6px 20px;
+  text-align: center;
+  animation: alertPulse 2s ease-in-out infinite;
+}
+
+#alert-banner.visible { display: block; }
+
+@keyframes alertPulse {
+  0%, 100% { background: var(--accent-red); }
+  50% { background: #ff1a2e; }
+}
+
+/* ── Loading State ───────────────────────────────────────────── */
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-bright);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+    --rightpanel-width: 0px;
+  }
+  body { overflow-y: auto; }
+}

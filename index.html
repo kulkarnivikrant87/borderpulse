@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Border Pulse — Real-time South Asia geopolitical intelligence dashboard monitoring India-Pakistan, India-China, India-Bangladesh, and Bay of Bengal theatres.">
+  <meta name="author" content="Vikrant Kulkarni">
+  <meta name="robots" content="index, follow">
+
+  <title>BORDER PULSE | South Asia Intelligence Dashboard</title>
+
+  <!-- Favicon placeholder -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰</text></svg>">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+
+  <!-- Design System -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/components.css">
+
+  <!-- Pulsing marker animation (injected globally for Leaflet divIcons) -->
+  <style>
+    @keyframes pulse {
+      0%   { transform: scale(0.5); opacity: 0.8; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TOP BAR
+  ══════════════════════════════════════════════════════════════ -->
+  <header id="topbar">
+    <div class="topbar-logo">
+      <span class="topbar-logo-icon">🛰</span>
+      <div>
+        <div class="topbar-logo-text">BORDER PULSE</div>
+        <div class="topbar-logo-sub">South Asia Geopolitical Intelligence</div>
+      </div>
+    </div>
+
+    <div class="topbar-center">
+      <div class="topbar-theatre-indicator">
+        <span class="theatre-dot loc"></span>LoC
+        <span class="theatre-dot lac" style="margin-left:8px;"></span>LAC
+        <span class="theatre-dot bangladesh" style="margin-left:8px;"></span>BD
+        <span class="theatre-dot naval" style="margin-left:8px;"></span>Naval
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <span id="backend-status" style="font-family:'JetBrains Mono',monospace;font-size:10px;display:none;"></span>
+      <span id="last-updated" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);">LOADING...</span>
+      <span id="alert-count-badge" class="hidden" title="Active high-tension theatres">0</span>
+    </div>
+  </header>
+
+  <!-- Alert Banner (shown when any theatre ≥ 70) -->
+  <div id="alert-banner" role="alert" aria-live="assertive"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CONTENT AREA
+  ══════════════════════════════════════════════════════════════ -->
+  <div id="content-area">
+
+    <!-- ─────────────────────────────────────────────────────────
+         LEFT SIDEBAR — Theatre Selector + Tension Bars
+    ──────────────────────────────────────────────────────────── -->
+    <aside id="sidebar">
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-header">Theatres</div>
+        <div id="theatre-selector"></div>
+      </div>
+
+      <div class="sidebar-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+        <div class="sidebar-section-header">Tension Index</div>
+        <div id="tension-sidebar"></div>
+      </div>
+
+      <!-- Classified watermark -->
+      <div style="padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;">
+        <div class="font-classified" style="font-size:9px;color:var(--text-muted);letter-spacing:0.14em;text-align:center;">
+          OSINT — UNCLASSIFIED — PUBLIC DATA ONLY
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ─────────────────────────────────────────────────────────
+         MAIN CONTENT — Map + News Feed
+    ──────────────────────────────────────────────────────────── -->
+    <main id="main-content">
+
+      <!-- Map -->
+      <div id="map-container">
+        <div id="map"></div>
+        <div class="map-label-overlay">
+          <div class="map-classified-banner">
+            OSINT DISPLAY — APPROXIMATE COORDINATES — NOT FOR OPERATIONAL USE
+          </div>
+        </div>
+      </div>
+
+      <!-- News Feed -->
+      <div id="news-container" class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📡 Live Intelligence Feed</span>
+          <span id="news-article-count" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);">Loading...</span>
+        </div>
+        <div id="news-filter-bar"></div>
+        <div id="news-list">
+          <div class="empty-state">
+            <div class="loading-spinner"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ─────────────────────────────────────────────────────────
+         RIGHT PANEL — AI Summary + Economic + Tension Gauges
+    ──────────────────────────────────────────────────────────── -->
+    <aside id="right-panel">
+
+      <!-- AI Summary Container -->
+      <div id="summary-container">
+        <div class="panel-header">
+          <span class="panel-title">🤖 AI Situation Briefings</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);">HAIKU 4.5</span>
+        </div>
+        <div id="summary-panels"></div>
+      </div>
+
+      <!-- Tension Gauges -->
+      <div style="flex-shrink:0;border-top:1px solid var(--border);">
+        <div class="panel-header">
+          <span class="panel-title">📊 Tension Gauges</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);">0–100</span>
+        </div>
+        <div id="tension-gauges" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;overflow-y:auto;"></div>
+      </div>
+
+      <!-- Economic Panel -->
+      <div id="economic-container" style="border-top:1px solid var(--border);">
+        <div class="panel-header">
+          <span class="panel-title">📈 Economic Signals</span>
+        </div>
+        <div id="economic-grid"></div>
+      </div>
+
+    </aside>
+
+  </div><!-- /#content-area -->
+
+  <!-- ═══════════════════════════════════════════════════════════
+       BOTTOM TICKER
+  ══════════════════════════════════════════════════════════════ -->
+  <footer id="ticker-bar" role="marquee" aria-label="Breaking news ticker">
+    <div class="ticker-label">BREAKING</div>
+    <div class="ticker-track">
+      <div class="ticker-inner"></div>
+    </div>
+  </footer>
+
+</div><!-- /#app -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     FOOTER DISCLAIMER (hidden, referenced in README)
+══════════════════════════════════════════════════════════════ -->
+<div id="disclaimer" style="display:none;" aria-hidden="true">
+  Border Pulse aggregates publicly available open-source intelligence (OSINT) data only.
+  All tension scores are algorithmic estimates based on news volume and sentiment — not
+  intelligence assessments. Information may be incomplete, delayed, or inaccurate.
+  State-controlled media sources are clearly labelled. This tool has no affiliation with
+  any government, military, or intelligence organisation. Not intended for operational use.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCRIPTS (load order matters)
+══════════════════════════════════════════════════════════════ -->
+
+<!-- Leaflet JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<!-- Border Pulse modules — order: config → modules → app -->
+<script src="js/config.js"></script>
+<script src="js/ticker.js"></script>
+<script src="js/map.js"></script>
+<script src="js/tension.js"></script>
+<script src="js/news.js"></script>
+<script src="js/summary.js"></script>
+<script src="js/economic.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

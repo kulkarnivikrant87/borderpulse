@@ -1,0 +1,111 @@
+{
+  "sources": [
+    {
+      "domain": "thehindu.com",
+      "name": "The Hindu",
+      "country": "India",
+      "flag": "🇮🇳",
+      "bias": "Independent",
+      "state_media": false,
+      "rss": "https://www.thehindu.com/feeder/default.rss",
+      "theatres": ["loc", "lac", "bangladesh", "naval"]
+    },
+    {
+      "domain": "ndtv.com",
+      "name": "NDTV",
+      "country": "India",
+      "flag": "🇮🇳",
+      "bias": "Independent",
+      "state_media": false,
+      "rss": "https://feeds.feedburner.com/ndtvnews-top-stories",
+      "theatres": ["loc", "lac", "bangladesh", "naval"]
+    },
+    {
+      "domain": "dawn.com",
+      "name": "Dawn",
+      "country": "Pakistan",
+      "flag": "🇵🇰",
+      "bias": "Independent",
+      "state_media": false,
+      "rss": "https://www.dawn.com/feeds/home",
+      "theatres": ["loc", "naval"]
+    },
+    {
+      "domain": "geo.tv",
+      "name": "Geo News",
+      "country": "Pakistan",
+      "flag": "🇵🇰",
+      "bias": "Independent",
+      "state_media": false,
+      "rss": "https://www.geo.tv/rss/1",
+      "theatres": ["loc", "naval"]
+    },
+    {
+      "domain": "thedailystar.net",
+      "name": "Daily Star BD",
+      "country": "Bangladesh",
+      "flag": "🇧🇩",
+      "bias": "Independent",
+      "state_media": false,
+      "rss": "https://www.thedailystar.net/frontpage/rss.xml",
+      "theatres": ["bangladesh"]
+    },
+    {
+      "domain": "xinhuanet.com",
+      "name": "Xinhua",
+      "country": "China",
+      "flag": "🇨🇳",
+      "bias": "State Media ⚠️",
+      "state_media": true,
+      "rss": "http://www.xinhuanet.com/english/rss/worldrss.xml",
+      "theatres": ["lac", "bangladesh", "naval"]
+    },
+    {
+      "domain": "globaltimes.cn",
+      "name": "Global Times",
+      "country": "China",
+      "flag": "🇨🇳",
+      "bias": "State Media ⚠️",
+      "state_media": true,
+      "rss": "https://www.globaltimes.cn/rss/outbrain.xml",
+      "theatres": ["lac", "naval"]
+    },
+    {
+      "domain": "ptv.com.pk",
+      "name": "PTV News",
+      "country": "Pakistan",
+      "flag": "🇵🇰",
+      "bias": "State Media ⚠️",
+      "state_media": true,
+      "rss": "https://www.ptv.com.pk/feed/",
+      "theatres": ["loc"]
+    },
+    {
+      "domain": "thewire.in",
+      "name": "The Wire",
+      "country": "India",
+      "flag": "🇮🇳",
+      "bias": "Independent",
+      "state_media": false,
+      "rss": "https://thewire.in/feed",
+      "theatres": ["loc", "lac", "bangladesh"]
+    },
+    {
+      "domain": "aljazeera.com",
+      "name": "Al Jazeera Asia",
+      "country": "Qatar",
+      "flag": "🇶🇦",
+      "bias": "International",
+      "state_media": false,
+      "rss": "https://www.aljazeera.com/xml/rss/all.xml",
+      "theatres": ["loc", "lac", "bangladesh", "naval"]
+    }
+  ],
+  "state_media_domains": ["xinhuanet.com", "globaltimes.cn", "ptv.com.pk", "presstv.ir"],
+  "theatre_keywords": {
+    "loc": ["India Pakistan", "Line of Control", "Kashmir", "LoC", "Siachen", "ceasefire violation"],
+    "lac": ["India China", "Line of Actual Control", "LAC", "Ladakh", "Arunachal", "Galwan", "Depsang", "Doklam"],
+    "bangladesh": ["India Bangladesh", "Bengal border", "Siliguri", "Rohingya", "BSF", "BGB"],
+    "naval": ["Bay of Bengal", "Arabian Sea", "Strait of Hormuz", "Gwadar", "naval", "INS", "PNS"]
+  }
+}
