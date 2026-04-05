@@ -4,7 +4,7 @@
 const CONFIG = {
   // Backend API URL — change to Railway URL in production
   // e.g. https://borderpulse-api.up.railway.app
-  API_BASE_URL: 'http://localhost:8000',
+    API_BASE_URL: 'https://borderpulse-production-c562.up.railway.app',
 
   // Refresh intervals
   REFRESH_INTERVAL_NEWS:    15 * 60 * 1000,  // 15 minutes
