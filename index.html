@@ -9,7 +9,6 @@
 
   <title>BORDER PULSE | South Asia Intelligence Dashboard</title>
 
-  <!-- Favicon placeholder -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰</text></svg>">
 
   <!-- Leaflet CSS -->
@@ -21,7 +20,6 @@
   <link rel="stylesheet" href="css/map.css">
   <link rel="stylesheet" href="css/components.css">
 
-  <!-- Pulsing marker animation (injected globally for Leaflet divIcons) -->
   <style>
     @keyframes pulse {
       0%   { transform: scale(0.5); opacity: 0.8; }
@@ -33,9 +31,6 @@
 
 <div id="app">
 
-  <!-- ═══════════════════════════════════════════════════════════
-       TOP BAR
-  ══════════════════════════════════════════════════════════════ -->
   <header id="topbar">
     <div class="topbar-logo">
       <span class="topbar-logo-icon">🛰</span>
@@ -61,17 +56,10 @@
     </div>
   </header>
 
-  <!-- Alert Banner (shown when any theatre ≥ 70) -->
   <div id="alert-banner" role="alert" aria-live="assertive"></div>
 
-  <!-- ═══════════════════════════════════════════════════════════
-       CONTENT AREA
-  ══════════════════════════════════════════════════════════════ -->
   <div id="content-area">
 
-    <!-- ─────────────────────────────────────────────────────────
-         LEFT SIDEBAR — Theatre Selector + Tension Bars
-    ──────────────────────────────────────────────────────────── -->
     <aside id="sidebar">
 
       <div class="sidebar-section">
@@ -84,7 +72,6 @@
         <div id="tension-sidebar"></div>
       </div>
 
-      <!-- Classified watermark -->
       <div style="padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;">
         <div class="font-classified" style="font-size:9px;color:var(--text-muted);letter-spacing:0.14em;text-align:center;">
           OSINT — UNCLASSIFIED — PUBLIC DATA ONLY
@@ -93,12 +80,8 @@
 
     </aside>
 
-    <!-- ─────────────────────────────────────────────────────────
-         MAIN CONTENT — Map + News Feed
-    ──────────────────────────────────────────────────────────── -->
     <main id="main-content">
 
-      <!-- Map -->
       <div id="map-container">
         <div id="map"></div>
         <div class="map-label-overlay">
@@ -108,7 +91,6 @@
         </div>
       </div>
 
-      <!-- News Feed -->
       <div id="news-container" class="panel">
         <div class="panel-header">
           <span class="panel-title">📡 Live Intelligence Feed</span>
@@ -124,12 +106,8 @@
 
     </main>
 
-    <!-- ─────────────────────────────────────────────────────────
-         RIGHT PANEL — AI Summary + Economic + Tension Gauges
-    ──────────────────────────────────────────────────────────── -->
     <aside id="right-panel">
 
-      <!-- AI Summary Container -->
       <div id="summary-container">
         <div class="panel-header">
           <span class="panel-title">🤖 AI Situation Briefings</span>
@@ -138,7 +116,6 @@
         <div id="summary-panels"></div>
       </div>
 
-      <!-- Tension Gauges -->
       <div style="flex-shrink:0;border-top:1px solid var(--border);">
         <div class="panel-header">
           <span class="panel-title">📊 Tension Gauges</span>
@@ -147,7 +124,6 @@
         <div id="tension-gauges" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;overflow-y:auto;"></div>
       </div>
 
-      <!-- Economic Panel -->
       <div id="economic-container" style="border-top:1px solid var(--border);">
         <div class="panel-header">
           <span class="panel-title">📈 Economic Signals</span>
@@ -157,11 +133,8 @@
 
     </aside>
 
-  </div><!-- /#content-area -->
+  </div>
 
-  <!-- ═══════════════════════════════════════════════════════════
-       BOTTOM TICKER
-  ══════════════════════════════════════════════════════════════ -->
   <footer id="ticker-bar" role="marquee" aria-label="Breaking news ticker">
     <div class="ticker-label">BREAKING</div>
     <div class="ticker-track">
@@ -169,11 +142,8 @@
     </div>
   </footer>
 
-</div><!-- /#app -->
+</div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FOOTER DISCLAIMER (hidden, referenced in README)
-══════════════════════════════════════════════════════════════ -->
 <div id="disclaimer" style="display:none;" aria-hidden="true">
   Border Pulse aggregates publicly available open-source intelligence (OSINT) data only.
   All tension scores are algorithmic estimates based on news volume and sentiment — not
@@ -182,10 +152,6 @@
   any government, military, or intelligence organisation. Not intended for operational use.
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     SCRIPTS (load order matters)
-══════════════════════════════════════════════════════════════ -->
-
 <!-- Leaflet JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
@@ -193,6 +159,9 @@
 <script src="js/config.js"></script>
 <script src="js/ticker.js"></script>
 <script src="js/map.js"></script>
+<script src="js/aviation.js"></script>
+<script src="js/naval.js"></script>
+<script src="js/satellites.js"></script>
 <script src="js/tension.js"></script>
 <script src="js/news.js"></script>
 <script src="js/summary.js"></script>
