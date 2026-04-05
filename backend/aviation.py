@@ -5,9 +5,11 @@ Border Pulse v1.1
 Primary:  https://opendata.adsb.fi/api/v2  — free, public, no rate-limit on server IPs
 Fallback: https://opensky-network.org/api  — requires auth from server IPs
 
-South Asia bounding box: lat 5-45N, lon 55-105E
+South Asia bounding box: lat 5–45°N, lon 55–105°E
+Covers: LoC, LAC, Bangladesh theatre, Indian Ocean, Bay of Bengal
 """
 
+import asyncio
 import logging
 import os
 import httpx
@@ -15,10 +17,21 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger("borderpulse.aviation")
 
-ADSBFI_URL   = "https://opendata.adsb.fi/api/v2/lat/25/lon/80/dist/1500"
+# adsb.fi — primary (open public feed, no auth needed)
+# adsb.fi max radius is ~250nm — use 6 overlapping queries to tile South Asia
+ADSBFI_BASE  = "https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/250"
+ADSBFI_CENTRES = [
+    (28.0,  70.0),   # NW India / Pakistan
+    (25.0,  89.0),   # NE India / Bangladesh
+    (15.0,  78.0),   # South India / Sri Lanka
+    (20.0,  63.0),   # Arabian Sea
+    (15.0,  88.0),   # Bay of Bengal
+    (24.0,  57.0),   # Persian Gulf / Oman
+]
 OPENSKY_URL  = "https://opensky-network.org/api/states/all"
 SOUTH_ASIA_BBOX = {"lamin": 5, "lomin": 55, "lamax": 45, "lomax": 105}
 
+# Lat/lon bbox for filtering adsb.fi results (which returns a radius)
 BBOX = {"lat_min": 5, "lat_max": 45, "lon_min": 55, "lon_max": 105}
 
 MILITARY_CALLSIGN_PREFIXES = [
@@ -37,13 +50,11 @@ MILITARY_CALLSIGN_PREFIXES = [
 MILITARY_SQUAWKS = {"7700", "7600", "7500", "7777"}
 
 COUNTRY_FLAG = {
-    "India": "\U0001f1ee\U0001f1f3", "Pakistan": "\U0001f1f5\U0001f1f0",
-    "China": "\U0001f1e8\U0001f1f3", "United States": "\U0001f1fa\U0001f1f8",
-    "Bangladesh": "\U0001f1e7\U0001f1e9", "Sri Lanka": "\U0001f1f1\U0001f1f0",
-    "Nepal": "\U0001f1f3\U0001f1f5", "Maldives": "\U0001f1f2\U0001f1fb",
-    "Bhutan": "\U0001f1e7\U0001f1f9", "Afghanistan": "\U0001f1e6\U0001f1eb",
-    "Iran": "\U0001f1ee\U0001f1f7", "Oman": "\U0001f1f4\U0001f1f2",
-    "United Arab Emirates": "\U0001f1e6\U0001f1ea", "Saudi Arabia": "\U0001f1f8\U0001f1e6",
+    "India": "🇨🇳", "Pakistan": "🇵🇰", "China": "🇨🇳",
+    "United States": "🇺🇸", "Bangladesh": "🇧🇩", "Sri Lanka": "🇱🇰",
+    "Nepal": "🇳🇵", "Maldives": "🇲🇻", "Bhutan": "🇧🇹",
+    "Afghanistan": "🇦🇫", "Iran": "🇮🇷", "Oman": "🇴🇲",
+    "United Arab Emirates": "🇦🇪", "Saudi Arabia": "🇸🇦",
 }
 
 INTEREST_COUNTRIES = {
@@ -54,7 +65,8 @@ INTEREST_COUNTRIES = {
 
 
 def classify_military(callsign: str, squawk: str, db_flags: int = 0) -> bool:
-    if db_flags and (db_flags & 1):
+    """Detect military aircraft via callsign prefix, squawk code, or adsb.fi dbFlags."""
+    if db_flags and (db_flags & 1):   # bit 0 = military in adsb.fi
         return True
     if squawk and squawk in MILITARY_SQUAWKS:
         return True
@@ -79,13 +91,66 @@ def categorise_aircraft(callsign: str, country: str) -> str:
     return "Civil"
 
 
+def _parse_adsbfi(data: dict) -> list:
+    """Parse adsb.fi /v2/lat/lon/dist response into our aircraft format."""
+    aircraft = []
+    for ac in data.get("aircraft") or data.get("ac") or []:
+        lat = ac.get("lat")
+        lon = ac.get("lon")
+        if lat is None or lon is None:
+            continue
+        # Filter to our bounding box (adsb.fi returns a circle)
+        if not (BBOX["lat_min"] <= lat <= BBOX["lat_max"] and
+                BBOX["lon_min"] <= lon <= BBOX["lon_max"]):
+            continue
+        # Skip ground traffic
+        if ac.get("alt_baro") == "ground":
+            continue
+
+        callsign  = (ac.get("flight") or ac.get("r") or ac.get("hex") or "").strip()
+        icao24    = ac.get("hex", "")
+        alt_ft    = ac.get("alt_baro") or ac.get("alt_geom")
+        alt_m     = round(alt_ft / 3.28084) if isinstance(alt_ft, (int, float)) else None
+        speed_kts = ac.get("gs")
+        heading   = ac.get("track")
+        squawk    = str(ac.get("squawk") or "")
+        db_flags  = ac.get("dbFlags", 0) or 0
+
+        reg = ac.get("r") or ""
+        country = _reg_to_country(reg, icao24)
+
+        is_mil   = classify_military(callsign, squawk, db_flags)
+        category = categorise_aircraft(callsign, country)
+
+        aircraft.append({
+            "icao24":      icao24,
+            "callsign":    callsign or icao24,
+            "country":     country,
+            "flag":        COUNTRY_FLAG.get(country, "🏳"),
+            "lat":         round(lat, 5),
+            "lon":         round(lon, 5),
+            "altitude_m":  alt_m,
+            "altitude_ft": int(alt_ft) if isinstance(alt_ft, (int, float)) else None,
+            "speed_kts":   round(speed_kts) if speed_kts else None,
+            "heading":     round(heading) if heading else 0,
+            "squawk":      squawk or None,
+            "military":    is_mil,
+            "category":    category,
+            "interest":    country in INTEREST_COUNTRIES or is_mil,
+            "last_seen":   ac.get("seen"),
+        })
+    return aircraft
+
+
 def _reg_to_country(reg: str, icao24: str) -> str:
+    """Rough country lookup from ICAO prefix or registration."""
     if icao24:
         prefix = icao24[:2].upper()
         icao_map = {
             "80": "India", "81": "India", "82": "India",
             "76": "Pakistan",
             "78": "China", "79": "China", "7B": "China",
+            "70": "Afghanistan",
             "73": "Iran",
             "71": "Saudi Arabia",
             "74": "United Arab Emirates",
@@ -112,52 +177,6 @@ def _reg_to_country(reg: str, icao24: str) -> str:
     return "Unknown"
 
 
-def _parse_adsbfi(data: dict) -> list:
-    aircraft = []
-    for ac in data.get("ac") or []:
-        lat = ac.get("lat")
-        lon = ac.get("lon")
-        if lat is None or lon is None:
-            continue
-        if not (BBOX["lat_min"] <= lat <= BBOX["lat_max"] and
-                BBOX["lon_min"] <= lon <= BBOX["lon_max"]):
-            continue
-        if ac.get("alt_baro") == "ground":
-            continue
-
-        callsign  = (ac.get("flight") or ac.get("r") or ac.get("hex") or "").strip()
-        icao24    = ac.get("hex", "")
-        alt_ft    = ac.get("alt_baro") or ac.get("alt_geom")
-        alt_m     = round(alt_ft / 3.28084) if isinstance(alt_ft, (int, float)) else None
-        speed_kts = ac.get("gs")
-        heading   = ac.get("track")
-        squawk    = str(ac.get("squawk") or "")
-        db_flags  = ac.get("dbFlags", 0) or 0
-        reg       = ac.get("r") or ""
-        country   = _reg_to_country(reg, icao24)
-        is_mil    = classify_military(callsign, squawk, db_flags)
-        category  = categorise_aircraft(callsign, country)
-
-        aircraft.append({
-            "icao24":      icao24,
-            "callsign":    callsign or icao24,
-            "country":     country,
-            "flag":        COUNTRY_FLAG.get(country, "\U0001f3f3"),
-            "lat":         round(lat, 5),
-            "lon":         round(lon, 5),
-            "altitude_m":  alt_m,
-            "altitude_ft": int(alt_ft) if isinstance(alt_ft, (int, float)) else None,
-            "speed_kts":   round(speed_kts) if speed_kts else None,
-            "heading":     round(heading) if heading else 0,
-            "squawk":      squawk or None,
-            "military":    is_mil,
-            "category":    category,
-            "interest":    country in INTEREST_COUNTRIES or is_mil,
-            "last_seen":   ac.get("seen"),
-        })
-    return aircraft
-
-
 def _parse_opensky(states: list) -> list:
     aircraft = []
     for s in (states or []):
@@ -179,7 +198,7 @@ def _parse_opensky(states: list) -> list:
             "icao24":      s[0],
             "callsign":    callsign,
             "country":     country,
-            "flag":        COUNTRY_FLAG.get(country, "\U0001f3f3"),
+            "flag":        COUNTRY_FLAG.get(country, "🏳"),
             "lat":         round(lat, 5),
             "lon":         round(lon, 5),
             "altitude_m":  round(alt_m) if alt_m else None,
@@ -196,26 +215,47 @@ def _parse_opensky(states: list) -> list:
 
 
 async def fetch_aviation(client: httpx.AsyncClient) -> list:
-    """Try adsb.fi first (open public API, no server IP restrictions).
-    Fall back to OpenSky Network if adsb.fi fails."""
+    """
+    Try adsb.fi first (open public API, works from server IPs).
+    Uses 6 parallel 250nm-radius queries to tile South Asia (adsb.fi max is ~250nm).
+    Falls back to OpenSky Network if all adsb.fi queries fail.
+    """
 
-    # Primary: adsb.fi
+    async def fetch_one_tile(lat: float, lon: float) -> list:
+        url = ADSBFI_BASE.format(lat=lat, lon=lon)
+        try:
+            resp = await client.get(
+                url,
+                timeout=20.0,
+                headers={"User-Agent": "BorderPulse/1.1 OSINT (non-commercial)"},
+            )
+            if resp.status_code == 200:
+                return _parse_adsbfi(resp.json())
+            logger.debug(f"[Aviation] adsb.fi ({lat},{lon}) HTTP {resp.status_code}")
+        except Exception as exc:
+            logger.debug(f"[Aviation] adsb.fi tile ({lat},{lon}) failed: {exc}")
+        return []
+
     try:
-        resp = await client.get(
-            ADSBFI_URL,
-            timeout=20.0,
-            headers={"User-Agent": "BorderPulse/1.1 OSINT (non-commercial)"},
+        tile_results = await asyncio.gather(
+            *[fetch_one_tile(lat, lon) for lat, lon in ADSBFI_CENTRES]
         )
-        if resp.status_code == 200:
-            aircraft = _parse_adsbfi(resp.json())
+        seen: set = set()
+        aircraft: list = []
+        for tile in tile_results:
+            for ac in tile:
+                if ac["icao24"] not in seen:
+                    seen.add(ac["icao24"])
+                    aircraft.append(ac)
+
+        if aircraft:
             mil = sum(1 for a in aircraft if a["military"])
-            logger.info(f"[Aviation] adsb.fi: {len(aircraft)} aircraft ({mil} military)")
+            logger.info(f"[Aviation] adsb.fi: {len(aircraft)} aircraft ({mil} military) from {len(ADSBFI_CENTRES)} tiles")
             return aircraft
-        logger.warning(f"[Aviation] adsb.fi HTTP {resp.status_code}")
+        logger.warning("[Aviation] adsb.fi returned 0 aircraft across all tiles")
     except Exception as exc:
         logger.warning(f"[Aviation] adsb.fi failed: {exc}")
 
-    # Fallback: OpenSky
     logger.info("[Aviation] Falling back to OpenSky Network")
     try:
         opensky_user = os.getenv("OPENSKY_USER")
@@ -236,7 +276,8 @@ async def fetch_aviation(client: httpx.AsyncClient) -> list:
             logger.warning(f"[Aviation] OpenSky HTTP {resp.status_code}")
             return []
 
-        aircraft = _parse_opensky(resp.json().get("states") or [])
+        data = resp.json()
+        aircraft = _parse_opensky(data.get("states") or [])
         mil = sum(1 for a in aircraft if a["military"])
         logger.info(f"[Aviation] OpenSky: {len(aircraft)} aircraft ({mil} military)")
         return aircraft
