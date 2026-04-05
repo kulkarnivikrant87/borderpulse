@@ -1,17 +1,17 @@
 """
-server.py -- FastAPI server (CORS proxy + in-memory caching)
+server.py — FastAPI server (CORS proxy + in-memory caching)
 Border Pulse v1.1
 
 Endpoints:
-  GET /health                  -- health check
-  GET /api/news/{theatre}      -- GDELT + RSS articles (cached 15 min)
-  GET /api/tension/{theatre}   -- tension score (cached 15 min)
-  GET /api/summary/{theatre}   -- Claude Haiku summary (cached 60 min)
-  GET /api/economic            -- currency + Brent crude (cached 30 min)
-  GET /api/flashpoints         -- flashpoints.json with live status
-  GET /api/aviation            -- real-time aircraft via OpenSky (cached 3 min)
-  GET /api/naval               -- naval vessels + strategic zones (cached 5 min)
-  GET /api/satellites          -- satellite positions via Celestrak+sgp4 (cached 10 min)
+  GET /health                  — health check
+  GET /api/news/{theatre}      — GDELT + RSS articles (cached 15 min)
+  GET /api/tension/{theatre}   — tension score (cached 15 min)
+  GET /api/summary/{theatre}   — Claude Haiku summary (cached 60 min)
+  GET /api/economic            — currency + Brent crude (cached 30 min)
+  GET /api/flashpoints         — flashpoints.json with live status
+  GET /api/aviation            — real-time aircraft via adsb.fi (cached 3 min)
+  GET /api/naval               — naval vessels + strategic zones (cached 5 min)
+  GET /api/satellites          — satellite positions via Celestrak+sgp4 (cached 10 min)
 
 Run locally:
   uvicorn server:app --reload --port 8000
@@ -43,15 +43,30 @@ from satellites import fetch_satellites
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger("borderpulse")
 
 CORS_ORIGIN = os.getenv("CORS_ORIGIN", "*")
 PORT = int(os.getenv("PORT", 8000))
+
 THEATRES = ["loc", "lac", "bangladesh", "naval"]
 
-app = FastAPI(title="Border Pulse API", description="CORS proxy and intelligence aggregation backend.", version="1.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=[CORS_ORIGIN] if CORS_ORIGIN != "*" else ["*"], allow_credentials=True, allow_methods=["GET"], allow_headers=["*"])
+app = FastAPI(
+    title="Border Pulse API",
+    description="CORS proxy and intelligence aggregation backend for Border Pulse dashboard.",
+    version="1.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[CORS_ORIGIN] if CORS_ORIGIN != "*" else ["*"],
+    allow_credentials=True,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 _cache: Dict[str, Dict[str, Any]] = {}
 
@@ -90,28 +105,47 @@ async def startup():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat() + "Z", "version": "1.1.0", "theatres": THEATRES}
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "version": "1.1.0",
+        "theatres": THEATRES,
+    }
 
 
 @app.get("/api/news/{theatre}")
 async def get_news(theatre: str):
     if theatre not in THEATRES:
         raise HTTPException(status_code=404, detail=f"Unknown theatre: {theatre}")
+
     cache_key = f"news_{theatre}"
     cached = cache_get(cache_key)
     if cached:
         return cached
+
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             gdelt_articles = await fetch_theatre_articles(theatre, client=client)
             rss_articles = await fetch_rss_for_theatre(theatre, client=client)
+
         combined = gdelt_articles + rss_articles
         deduplicated = deduplicate_articles(combined)
-        deduplicated.sort(key=lambda a: a.get("seendate") or a.get("published") or "", reverse=True)
+        deduplicated.sort(
+            key=lambda a: a.get("seendate") or a.get("published") or "",
+            reverse=True
+        )
         articles = deduplicated[:20]
-        result = {"theatre": theatre, "articles": articles, "count": len(articles), "fetched_at": datetime.utcnow().isoformat() + "Z"}
+
+        result = {
+            "theatre":    theatre,
+            "articles":   articles,
+            "count":      len(articles),
+            "fetched_at": datetime.utcnow().isoformat() + "Z",
+        }
+
         cache_set(cache_key, result, TTL["news"])
         return result
+
     except Exception as e:
         logger.error(f"[News] Error for {theatre}: {e}")
         raise HTTPException(status_code=502, detail=str(e))
@@ -121,20 +155,28 @@ async def get_news(theatre: str):
 async def get_tension(theatre: str):
     if theatre not in THEATRES:
         raise HTTPException(status_code=404, detail=f"Unknown theatre: {theatre}")
+
     cache_key = f"tension_{theatre}"
     cached = cache_get(cache_key)
     if cached:
         return cached
+
     try:
         news_cached = cache_get(f"news_{theatre}")
         articles = news_cached["articles"] if news_cached else []
+
         if not articles:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 articles = await fetch_theatre_articles(theatre, client=client)
+
         polymarket_prob = 0.5
         try:
             async with httpx.AsyncClient(timeout=5.0) as pm_client:
-                pm_resp = await pm_client.get("https://clob.polymarket.com/markets", params={"tag": "south-asia-conflict"}, timeout=5.0)
+                pm_resp = await pm_client.get(
+                    "https://clob.polymarket.com/markets",
+                    params={"tag": "south-asia-conflict"},
+                    timeout=5.0,
+                )
                 if pm_resp.status_code == 200:
                     pm_data = pm_resp.json()
                     if pm_data and isinstance(pm_data, list):
@@ -143,9 +185,11 @@ async def get_tension(theatre: str):
                             polymarket_prob = sum(prices) / len(prices)
         except Exception:
             pass
+
         result = calculate_tension(articles, theatre, polymarket_prob)
         cache_set(cache_key, result, TTL["tension"])
         return result
+
     except Exception as e:
         logger.error(f"[Tension] Error for {theatre}: {e}")
         raise HTTPException(status_code=502, detail=str(e))
@@ -155,19 +199,28 @@ async def get_tension(theatre: str):
 async def get_summary(theatre: str):
     if theatre not in THEATRES:
         raise HTTPException(status_code=404, detail=f"Unknown theatre: {theatre}")
+
     cache_key = f"summary_{theatre}"
     cached = cache_get(cache_key)
     if cached:
         return cached
+
     try:
         news_cached = cache_get(f"news_{theatre}")
         articles = news_cached["articles"][:10] if news_cached else []
+
         tension_cached = cache_get(f"tension_{theatre}")
         tension_score = tension_cached["score"] if tension_cached else 50
-        avg_tone = sum(float(a.get("tone", 0) or 0) for a in articles) / len(articles) if articles else 0.0
+
+        avg_tone = 0.0
+        if articles:
+            tones = [float(a.get("tone", 0) or 0) for a in articles]
+            avg_tone = sum(tones) / len(tones)
+
         result = await generate_summary(theatre, articles, tension_score, avg_tone)
         cache_set(cache_key, result, TTL["summary"])
         return result
+
     except Exception as e:
         logger.error(f"[Summary] Error for {theatre}: {e}")
         raise HTTPException(status_code=502, detail=str(e))
@@ -186,8 +239,15 @@ async def get_economic():
     cached = cache_get(cache_key)
     if cached:
         return cached
+
     try:
-        pairs = {"INR_USD": "INRUSD=X", "PKR_USD": "PKRUSD=X", "BDT_USD": "BDTUSD=X", "BRENT": "BZ=F"}
+        pairs = {
+            "INR_USD": "INRUSD=X",
+            "PKR_USD": "PKRUSD=X",
+            "BDT_USD": "BDTUSD=X",
+            "BRENT":   "BZ=F",
+        }
+
         result = {}
         async with httpx.AsyncClient(timeout=10.0) as client:
             for pair_id, ticker in pairs.items():
@@ -198,17 +258,21 @@ async def get_economic():
                         data = r.json()
                         meta = data.get("chart", {}).get("result", [{}])[0].get("meta", {})
                         value = meta.get("regularMarketPrice")
-                        prev = meta.get("chartPreviousClose") or meta.get("previousClose")
+                        prev  = meta.get("chartPreviousClose") or meta.get("previousClose")
+
                         if value is not None:
-                            result[pair_id] = {"value": value, "change_pct": ((value - prev) / prev * 100) if prev else None}
+                            change_pct = ((value - prev) / prev * 100) if prev else None
+                            result[pair_id] = {"value": value, "change_pct": change_pct}
                         else:
                             result[pair_id] = {"value": None, "change_pct": None}
                 except Exception as ex:
-                    logger.warning(f"[Economic] Failed {ticker}: {ex}")
+                    logger.warning(f"[Economic] Failed to fetch {ticker}: {ex}")
                     result[pair_id] = {"value": None, "change_pct": None}
+
         result["fetched_at"] = datetime.utcnow().isoformat() + "Z"
         cache_set(cache_key, result, TTL["economic"])
         return result
+
     except Exception as e:
         logger.error(f"[Economic] Error: {e}")
         raise HTTPException(status_code=502, detail=str(e))
@@ -220,6 +284,7 @@ async def get_flashpoints():
     cached = cache_get(cache_key)
     if cached:
         return cached
+
     try:
         data_path = Path(__file__).parent.parent / "data" / "flashpoints.json"
         if data_path.exists():
@@ -227,6 +292,7 @@ async def get_flashpoints():
                 data = json.load(f)
         else:
             raise FileNotFoundError(f"flashpoints.json not found at {data_path}")
+
         for feature in data.get("features", []):
             theatre = feature["properties"].get("theatre", "").lower().replace("-", "")
             theatre_id = None
@@ -234,13 +300,16 @@ async def get_flashpoints():
             elif "china" in theatre:  theatre_id = "lac"
             elif "bangladesh" in theatre: theatre_id = "bangladesh"
             elif "naval" in theatre:  theatre_id = "naval"
+
             if theatre_id:
                 tension_cached = cache_get(f"tension_{theatre_id}")
                 if tension_cached:
                     feature["properties"]["live_tension"] = tension_cached["score"]
+
         data["fetched_at"] = datetime.utcnow().isoformat() + "Z"
         cache_set(cache_key, data, TTL["flashpoints"])
         return data
+
     except Exception as e:
         logger.error(f"[Flashpoints] Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -252,18 +321,22 @@ async def get_aviation():
     cached = cache_get(cache_key)
     if cached:
         return cached
+
     try:
         async with httpx.AsyncClient(timeout=25.0) as client:
             aircraft = await fetch_aviation(client)
+
         result = {
-            "aircraft": aircraft, "count": len(aircraft),
-            "military": sum(1 for a in aircraft if a.get("military")),
+            "aircraft":  aircraft,
+            "count":     len(aircraft),
+            "military":  sum(1 for a in aircraft if a.get("military")),
             "fetched_at": datetime.utcnow().isoformat() + "Z",
-            "source": "OpenSky Network",
-            "bbox": {"lat": "5-45N", "lon": "55-105E"},
+            "source":    "adsb.fi / OpenSky Network",
+            "bbox":      {"lat": "5-45N", "lon": "55-105E"},
         }
         cache_set(cache_key, result, TTL["aviation"])
         return result
+
     except Exception as e:
         logger.error(f"[Aviation] Endpoint error: {e}")
         raise HTTPException(status_code=502, detail=str(e))
@@ -275,11 +348,14 @@ async def get_naval():
     cached = cache_get(cache_key)
     if cached:
         return cached
+
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             result = await fetch_naval(client)
+
         cache_set(cache_key, result, TTL["naval"])
         return result
+
     except Exception as e:
         logger.error(f"[Naval] Endpoint error: {e}")
         raise HTTPException(status_code=502, detail=str(e))
@@ -291,18 +367,22 @@ async def get_satellites():
     cached = cache_get(cache_key)
     if cached:
         return cached
+
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             sats = await fetch_satellites(client)
+
         result = {
-            "satellites": sats, "count": len(sats),
+            "satellites":  sats,
+            "count":       len(sats),
             "over_region": sum(1 for s in sats if s.get("over_south_asia")),
-            "fetched_at": datetime.utcnow().isoformat() + "Z",
-            "source": "Celestrak + sgp4",
-            "region": "South Asia + Indian Ocean",
+            "fetched_at":  datetime.utcnow().isoformat() + "Z",
+            "source":      "Celestrak + sgp4",
+            "region":      "South Asia + Indian Ocean",
         }
         cache_set(cache_key, result, TTL["satellites"])
         return result
+
     except Exception as e:
         logger.error(f"[Satellites] Endpoint error: {e}")
         raise HTTPException(status_code=502, detail=str(e))
