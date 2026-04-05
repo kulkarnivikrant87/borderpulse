@@ -1,4 +1,4 @@
-TEST_CONTENT_123"""
+"""
 aviation.py — Real-time aviation data via OpenSky Network (free, no key required)
 Border Pulse v1.1
 
