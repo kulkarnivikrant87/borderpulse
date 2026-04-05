@@ -1,21 +1,19 @@
 // app.js — Main init, refresh orchestration, module wiring
-// Border Pulse v1.0 | South Asia Geopolitical Intelligence Dashboard
+// Border Pulse v1.1 | South Asia Geopolitical Intelligence Dashboard
 
 (async () => {
-  console.log('[BorderPulse] Initialising v1.0...');
+  console.log('[BorderPulse] Initialising v1.1...');
 
-  // ── DOM ready guard ────────────────────────────────────────────
   if (document.readyState === 'loading') {
     await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
   }
 
-  // ── Phase indicator (topbar) ───────────────────────────────────
   updateLastUpdatedLabel('Initialising...');
 
-  // ── 1. Ticker (init first — visible immediately) ───────────────
+  // 1. Ticker
   TickerModule.init();
 
-  // ── 2. Map ─────────────────────────────────────────────────────
+  // 2. Map
   try {
     MapModule.init();
     console.log('[BorderPulse] Map loaded');
@@ -23,7 +21,50 @@
     console.error('[BorderPulse] Map init failed:', err);
   }
 
-  // ── 3. Tension gauges + sidebar bars ──────────────────────────
+  // 2a. Aviation layer
+  try {
+    const map = MapModule.getMap();
+    if (map) {
+      const aviationLayer = AviationModule.init(map, null);
+      const aviationLabel = `<span style="font-family:Rajdhani,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">✈ Aviation <span id="aviation-count" style="color:var(--text-dim);font-size:10px;margin-left:4px;font-family:'JetBrains Mono',monospace;">—</span></span>`;
+      MapModule.addOverlay(aviationLabel, aviationLayer, false);
+      console.log('[BorderPulse] Aviation module loaded');
+    }
+  } catch (err) {
+    console.error('[BorderPulse] Aviation init failed:', err);
+  }
+
+  // 2b. Naval layer
+  try {
+    const map = MapModule.getMap();
+    if (map) {
+      const { vesselLayer, zoneLayer } = NavalModule.init(map, null);
+      const vesselLabel = `<span style="font-family:Rajdhani,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">⚓ Naval Vessels <span id="naval-count" style="color:var(--text-dim);font-size:10px;margin-left:4px;font-family:'JetBrains Mono',monospace;">—</span></span>`;
+      const zoneLabel   = `<span style="font-family:Rajdhani,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">⚔️ Strategic Zones</span>`;
+      MapModule.addOverlay(vesselLabel, vesselLayer, false);
+      MapModule.addOverlay(zoneLabel,   zoneLayer,   false);
+      console.log('[BorderPulse] Naval module loaded');
+    }
+  } catch (err) {
+    console.error('[BorderPulse] Naval init failed:', err);
+  }
+
+  // 2c. Satellite layer
+  try {
+    const map = MapModule.getMap();
+    if (map) {
+      const { satLayer, trackLayer } = SatelliteModule.init(map, null);
+      const satLabel   = `<span style="font-family:Rajdhani,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">🛰️ Satellites <span id="sat-count" style="color:var(--text-dim);font-size:10px;margin-left:4px;font-family:'JetBrains Mono',monospace;">—</span></span>`;
+      const trackLabel = `<span style="font-family:Rajdhani,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#445577;">··· Ground Tracks</span>`;
+      MapModule.addOverlay(satLabel,   satLayer,   false);
+      MapModule.addOverlay(trackLabel, trackLayer, false);
+      console.log('[BorderPulse] Satellite module loaded');
+    }
+  } catch (err) {
+    console.error('[BorderPulse] Satellite init failed:', err);
+  }
+
+  // 3. Tension
   try {
     await TensionModule.init();
     TensionModule.startAutoRefresh();
@@ -32,7 +73,7 @@
     console.error('[BorderPulse] Tension init failed:', err);
   }
 
-  // ── 4. News feed ───────────────────────────────────────────────
+  // 4. News
   try {
     await NewsModule.init();
     NewsModule.startAutoRefresh();
@@ -41,7 +82,7 @@
     console.error('[BorderPulse] News init failed:', err);
   }
 
-  // ── 5. AI Summaries ────────────────────────────────────────────
+  // 5. AI Summaries
   try {
     await SummaryModule.init();
     SummaryModule.startAutoRefresh();
@@ -50,7 +91,7 @@
     console.error('[BorderPulse] Summary init failed:', err);
   }
 
-  // ── 6. Economic panel ──────────────────────────────────────────
+  // 6. Economic panel
   try {
     await EconomicModule.init();
     EconomicModule.startAutoRefresh();
@@ -59,16 +100,15 @@
     console.error('[BorderPulse] Economic init failed:', err);
   }
 
-  // ── 7. Theatre selector buttons (sidebar) ─────────────────────
+  // 7. Theatre selector
   setupTheatreSelector();
 
-  // ── 8. Backend health check ───────────────────────────────────
+  // 8. Backend health check
   checkBackendHealth();
 
   console.log('[BorderPulse] All modules loaded. Dashboard operational.');
   updateLastUpdatedLabel();
 
-  // ── Global refresh on visibility change ───────────────────────
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       console.log('[BorderPulse] Tab refocused — refreshing data');
@@ -78,7 +118,6 @@
   });
 })();
 
-// ── Theatre selector ──────────────────────────────────────────────
 function setupTheatreSelector() {
   const selector = document.getElementById('theatre-selector');
   if (!selector) return;
@@ -98,7 +137,6 @@ function setupTheatreSelector() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.theatre-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      // Pan map to theatre region
       panMapToTheatre(theatre);
     });
 
@@ -106,7 +144,6 @@ function setupTheatreSelector() {
   });
 }
 
-// ── Map pan to theatre ────────────────────────────────────────────
 function panMapToTheatre(theatre) {
   const centres = {
     loc:        [34.2, 75.0],
@@ -123,7 +160,6 @@ function panMapToTheatre(theatre) {
   }
 }
 
-// ── Backend health check ──────────────────────────────────────────
 async function checkBackendHealth() {
   try {
     const r = await fetch(`${CONFIG.API_BASE_URL}/health`, { signal: AbortSignal.timeout(5000) });
@@ -149,7 +185,6 @@ function showBackendWarning() {
   }
 }
 
-// ── Last updated label ────────────────────────────────────────────
 function updateLastUpdatedLabel(override) {
   const el = document.getElementById('last-updated');
   if (!el) return;
