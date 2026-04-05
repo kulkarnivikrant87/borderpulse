@@ -1,70 +1,98 @@
 """
-satellites.py -- Real-time satellite position tracking via Celestrak + sgp4
+satellites.py — Real-time satellite position tracking
 Border Pulse v1.1
+
+Primary TLE source: tle.ivanstanojevic.me (free JSON API, no auth required)
+Fallback: hardcoded TLEs for verified satellites (refreshed periodically via commit)
+Library: sgp4 (Two-Line Element propagation)
+
+Tracks reconnaissance, navigation, and dual-use satellites relevant to South Asia.
+
+NOTE ON CATALOGUE:
+  Many military/classified satellites (YAOGAN, USA-xxx) do not appear in public
+  TLE databases under their real names. The catalogue below only includes
+  satellites with VERIFIED correct NORAD IDs confirmed against the TLE API.
+  Hardcoded fallback TLEs were captured 2026-04-06.
 """
 
 import asyncio
 import logging
 import math
 from datetime import datetime, timezone
+
 import httpx
 
 logger = logging.getLogger("borderpulse.satellites")
 
+# ── TLE source ──────────────────────────────────────────────────────────────────────────────
+# Per-satellite JSON API — free, no auth, accessible from Railway
+TLE_API_URL = "https://tle.ivanstanojevic.me/api/tle/{norad}"
+
+# ── Satellite Catalogue ────────────────────────────────────────────────────────────────────────────
+# Only satellites with VERIFIED correct NORAD IDs.
+# name_match: substring that must appear in the API response name (case-insensitive)
 SATELLITE_CATALOGUE = [
-    {"name": "RISAT-2B",   "norad": 44233, "country": "India",   "type": "SAR",       "role": "All-weather maritime & border surveillance"},
-    {"name": "RISAT-2BR1", "norad": 45359, "country": "India",   "type": "SAR",       "role": "High-resolution SAR reconnaissance"},
-    {"name": "RISAT-2BR2", "norad": 47511, "country": "India",   "type": "SAR",       "role": "SAR intelligence gathering"},
-    {"name": "CARTOSAT-3", "norad": 45026, "country": "India",   "type": "Optical",   "role": "Sub-metre resolution imaging (~0.25m)"},
-    {"name": "EMISAT",     "norad": 44326, "country": "India",   "type": "SIGINT",    "role": "Electronic intelligence / signals monitoring"},
-    {"name": "MICROSAT-R", "norad": 44112, "country": "India",   "type": "Optical",   "role": "ASAT target / tech demo satellite"},
-    {"name": "IRNSS-1I",   "norad": 43286, "country": "India",   "type": "NavIC",     "role": "Indian regional navigation (military-grade)"},
-    {"name": "YAOGAN-33",  "norad": 46028, "country": "China",   "type": "Optical",   "role": "High-resolution optical reconnaissance"},
-    {"name": "YAOGAN-34",  "norad": 47774, "country": "China",   "type": "SAR",       "role": "SAR imaging constellation"},
-    {"name": "YAOGAN-36A", "norad": 53323, "country": "China",   "type": "ELINT",     "role": "Electronic intelligence triplet"},
-    {"name": "YAOGAN-36B", "norad": 53324, "country": "China",   "type": "ELINT",     "role": "Electronic intelligence triplet"},
-    {"name": "YAOGAN-36C", "norad": 53325, "country": "China",   "type": "ELINT",     "role": "Electronic intelligence triplet"},
-    {"name": "SHIYAN-13",  "norad": 54237, "country": "China",   "type": "Classified","role": "Technology experiment (recon-adjacent)"},
-    {"name": "PRSS-1",     "norad": 43638, "country": "Pakistan","type": "Optical",   "role": "Pakistan Remote Sensing Satellite (Chinese-built)"},
-    {"name": "PAKTES-1A",  "norad": 43937, "country": "Pakistan","type": "Optical",   "role": "Technology demonstration / observation"},
-    {"name": "USA-224",    "norad": 36830, "country": "USA",     "type": "Classified","role": "NRO KH-class optical reconnaissance"},
-    {"name": "USA-290",    "norad": 43647, "country": "USA",     "type": "Classified","role": "NRO advanced reconnaissance"},
-    {"name": "ISS",        "norad": 25544, "country": "International","type": "Station","role": "International Space Station (reference)"},
+    # ── India — ISRO ──
+    {
+        "name": "RISAT-2B", "norad": 44233,
+        "country": "India", "type": "SAR",
+        "role": "All-weather border & maritime surveillance (C-band, 0.5m res)",
+        "name_match": "RISAT-2B",
+    },
+    {
+        "name": "IRNSS-1I", "norad": 43286,
+        "country": "India", "type": "NavIC",
+        "role": "Indian Regional Navigation Satellite System — military-grade positioning",
+        "name_match": "IRNSS",
+    },
+    {
+        "name": "GSAT-30", "norad": 45026,
+        "country": "India", "type": "Comms",
+        "role": "Geostationary C/Ku-band communications — civil & dual-use",
+        "name_match": "GSAT-30",
+    },
+    # ── Reference ──
+    {
+        "name": "ISS", "norad": 25544,
+        "country": "International", "type": "Station",
+        "role": "International Space Station — reference orbit",
+        "name_match": "ISS",
+    },
 ]
 
-TLE_GROUP_URLS = [
-    "https://celestrak.org/pub/TLE/resource.txt",
-    "https://celestrak.org/pub/TLE/tle-new.txt",
-    "https://celestrak.org/pub/TLE/visual.txt",
-    "https://celestrak.org/pub/TLE/military.txt",
-]
+# ── Hardcoded fallback TLEs (captured 2026-04-06, valid for ~2 weeks) ──────────────────
+# Used when the API is unreachable. Update by re-fetching from ivanstanojevic.
+FALLBACK_TLES = {
+    25544: (
+        "ISS (ZARYA)",
+        "1 25544U 98067A   26094.84355279  .00009370  00000+0  17936-3 0  9991",
+        "2 25544  51.6331 303.0545 0006326 272.5089  87.5175 15.48773610560388",
+    ),
+    43286: (
+        "IRNSS-1I",
+        "1 43286U 18035A   26094.01711129  .00000092  00000+0  00000+0 0  9992",
+        "2 43286  29.0042  75.3378 0018350 190.1078 348.2572  1.00278898 29339",
+    ),
+    44233: (
+        "RISAT-2B",
+        "1 44233U 19028A   26094.93360068  .00004731  00000+0  36709-3 0  9994",
+        "2 44233  36.9972  68.4378 0004918 180.4510 179.6229 15.01254688376812",
+    ),
+}
 
-CELESTRAK_SINGLE_URL = "https://celestrak.org/TLE/query.php?CATNR={norad}"
+# South Asia + Indian Ocean bounding box for "overhead" classification
 SOUTH_ASIA_BBOX = {"lat_min": -10, "lat_max": 48, "lon_min": 50, "lon_max": 110}
+
 COUNTRY_COLOURS = {
-    "India": "#FF9933", "China": "#DE2910", "Pakistan": "#01411C",
-    "USA": "#3C3B6E", "International": "#2EC4B6",
+    "India":         "#FF9933",
+    "China":         "#DE2910",
+    "Pakistan":      "#01411C",
+    "USA":           "#3C3B6E",
+    "International": "#2EC4B6",
 }
 
 
-def parse_tle_text(text: str) -> dict:
-    result = {}
-    lines = [ln.strip() for ln in text.strip().splitlines() if ln.strip()]
-    i = 0
-    while i < len(lines) - 2:
-        line1 = lines[i + 1] if i + 1 < len(lines) else ""
-        line2 = lines[i + 2] if i + 2 < len(lines) else ""
-        if line1.startswith("1 ") and line2.startswith("2 "):
-            try:
-                norad = int(line1[2:7].strip())
-                result[norad] = (lines[i], line1, line2)
-            except ValueError:
-                pass
-            i += 3
-        else:
-            i += 1
-    return result
-
+# ── Coordinate Conversion ──────────────────────────────────────────────────────────────────────────────
 
 def greenwich_mean_sidereal_time(jd: float) -> float:
     T = (jd - 2451545.0) / 36525.0
@@ -116,104 +144,103 @@ def compute_ground_track(sat_rec, jd_now: float, minutes: int = 100, step_min: i
     return track
 
 
+def _propagate(sat_rec, jd_now: float, sat_info: dict):
+    """Run sgp4 propagation and return enriched satellite dict, or None on error."""
+    try:
+        jd_whole = math.floor(jd_now)
+        jd_frac  = jd_now - jd_whole
+        e, r, v  = sat_rec.sgp4(jd_whole, jd_frac)
+        if e != 0 or r[0] is None:
+            return None
+        lat, lon, alt_km = eci_to_geodetic(r, jd_now)
+        speed_kms = math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
+        ground_track = compute_ground_track(sat_rec, jd_now)
+        bbox = SOUTH_ASIA_BBOX
+        over = bbox["lat_min"] <= lat <= bbox["lat_max"] and bbox["lon_min"] <= lon <= bbox["lon_max"]
+        now_utc = datetime.now(timezone.utc)
+        return {
+            "name":            sat_info["name"],
+            "norad":           sat_info["norad"],
+            "country":         sat_info["country"],
+            "type":            sat_info["type"],
+            "role":            sat_info["role"],
+            "colour":          COUNTRY_COLOURS.get(sat_info["country"], "#8899AA"),
+            "lat":             round(lat, 3),
+            "lon":             round(lon, 3),
+            "altitude_km":     round(alt_km, 1),
+            "speed_kms":       round(speed_kms, 2),
+            "period_min":      round(
+                2 * math.pi * (alt_km + 6371)**1.5
+                / math.sqrt(398600.4 * (alt_km + 6371)) / 60, 1
+            ),
+            "ground_track":    ground_track,
+            "over_south_asia": over,
+            "computed_at":     now_utc.isoformat() + "Z",
+        }
+    except Exception as exc:
+        logger.debug(f"[Satellites] Propagation error for {sat_info['name']}: {exc}")
+        return None
+
+
+# ── Main fetch ────────────────────────────────────────────────────────────────────────────────────
+
 async def fetch_satellites(client: httpx.AsyncClient) -> list:
+    """
+    Fetch TLE data from tle.ivanstanojevic.me (JSON, per satellite),
+    verify name matches catalogue entry, compute current positions with sgp4.
+    Falls back to hardcoded TLEs if the API is unreachable.
+    """
     try:
         from sgp4.api import Satrec
     except ImportError:
-        logger.error("[Satellites] sgp4 library not installed")
+        logger.error("[Satellites] sgp4 not installed — add sgp4 to requirements.txt")
         return []
 
-    tle_master: dict = {}
-
-    async def fetch_group(url: str):
-        try:
-            r = await client.get(url, timeout=15.0, headers={"User-Agent": "BorderPulse/1.1"})
-            if r.status_code == 200:
-                parsed = parse_tle_text(r.text)
-                logger.debug(f"[Satellites] {url.split('/')[-1]}: {len(parsed)} TLEs")
-                return parsed
-        except Exception as exc:
-            logger.debug(f"[Satellites] Failed to fetch {url}: {exc}")
-        return {}
-
-    group_results = await asyncio.gather(*[fetch_group(u) for u in TLE_GROUP_URLS])
-    for gr in group_results:
-        tle_master.update(gr)
-
-    logger.info(f"[Satellites] Loaded {len(tle_master)} TLEs from group files")
-
     now_utc = datetime.now(timezone.utc)
-    jd_now = now_utc.timestamp() / 86400.0 + 2440587.5
+    jd_now  = now_utc.timestamp() / 86400.0 + 2440587.5
+
+    async def fetch_tle(sat_info: dict):
+        """Return (name, tle1, tle2) or None."""
+        norad = sat_info["norad"]
+        url   = TLE_API_URL.format(norad=norad)
+        try:
+            resp = await client.get(
+                url, timeout=10.0,
+                headers={"User-Agent": "BorderPulse/1.1 OSINT (non-commercial)"},
+            )
+            if resp.status_code == 200:
+                data  = resp.json()
+                name  = data.get("name", "")
+                line1 = data.get("line1", "")
+                line2 = data.get("line2", "")
+                match_key = sat_info.get("name_match", sat_info["name"])
+                if line1 and line2 and match_key.upper() in name.upper():
+                    logger.debug(f"[Satellites] API: {norad} → {name}")
+                    return (name, line1, line2)
+                elif line1 and line2:
+                    logger.debug(f"[Satellites] Name mismatch {norad}: expected '{match_key}', got '{name}' — using fallback")
+        except Exception as exc:
+            logger.debug(f"[Satellites] API unreachable for {norad}: {exc}")
+
+        # Fall back to hardcoded TLE
+        if norad in FALLBACK_TLES:
+            logger.debug(f"[Satellites] Using hardcoded TLE for {sat_info['name']}")
+            return FALLBACK_TLES[norad]
+        return None
+
+    # Fetch all TLEs in parallel
+    tle_results = await asyncio.gather(*[fetch_tle(s) for s in SATELLITE_CATALOGUE])
 
     results = []
-    missing_norads = []
-
-    for sat_info in SATELLITE_CATALOGUE:
-        norad = sat_info["norad"]
-        tle_entry = tle_master.get(norad)
+    for sat_info, tle_entry in zip(SATELLITE_CATALOGUE, tle_results):
         if tle_entry is None:
-            missing_norads.append(sat_info)
+            logger.debug(f"[Satellites] No TLE for {sat_info['name']}, skipping")
             continue
         _, tle1, tle2 = tle_entry
-        try:
-            sat_rec = Satrec.twoline2rv(tle1, tle2)
-            jd_whole = math.floor(jd_now)
-            jd_frac = jd_now - jd_whole
-            e, r, v = sat_rec.sgp4(jd_whole, jd_frac)
-            if e != 0 or r[0] is None:
-                continue
-            lat, lon, alt_km = eci_to_geodetic(r, jd_now)
-            speed_kms = math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
-            ground_track = compute_ground_track(sat_rec, jd_now)
-            bbox = SOUTH_ASIA_BBOX
-            over_region = (bbox["lat_min"] <= lat <= bbox["lat_max"] and bbox["lon_min"] <= lon <= bbox["lon_max"])
-            results.append({
-                "name": sat_info["name"], "norad": norad, "country": sat_info["country"],
-                "type": sat_info["type"], "role": sat_info["role"],
-                "colour": COUNTRY_COLOURS.get(sat_info["country"], "#8899AA"),
-                "lat": round(lat, 3), "lon": round(lon, 3),
-                "altitude_km": round(alt_km, 1), "speed_kms": round(speed_kms, 2),
-                "period_min": round(2 * math.pi * (alt_km + 6371) ** 1.5 / math.sqrt(398600.4 * (alt_km + 6371)) / 60, 1),
-                "ground_track": ground_track, "over_south_asia": over_region,
-                "computed_at": now_utc.isoformat() + "Z",
-            })
-        except Exception as exc:
-            logger.warning(f"[Satellites] Position error for {sat_info['name']}: {exc}")
-
-    if missing_norads:
-        for sat_info in missing_norads[:5]:
-            try:
-                url = CELESTRAK_SINGLE_URL.format(norad=sat_info["norad"])
-                r = await client.get(url, timeout=10.0)
-                if r.status_code == 200 and r.text.strip():
-                    parsed = parse_tle_text(r.text)
-                    norad = sat_info["norad"]
-                    if norad not in parsed and parsed:
-                        norad = next(iter(parsed))
-                    if norad in parsed:
-                        _, tle1, tle2 = parsed[norad]
-                        sat_rec = Satrec.twoline2rv(tle1, tle2)
-                        jd_whole = math.floor(jd_now)
-                        jd_frac = jd_now - jd_whole
-                        e, r_vec, v = sat_rec.sgp4(jd_whole, jd_frac)
-                        if e == 0:
-                            lat, lon, alt_km = eci_to_geodetic(r_vec, jd_now)
-                            speed_kms = math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
-                            bbox = SOUTH_ASIA_BBOX
-                            results.append({
-                                "name": sat_info["name"], "norad": sat_info["norad"],
-                                "country": sat_info["country"], "type": sat_info["type"],
-                                "role": sat_info["role"],
-                                "colour": COUNTRY_COLOURS.get(sat_info["country"], "#8899AA"),
-                                "lat": round(lat, 3), "lon": round(lon, 3),
-                                "altitude_km": round(alt_km, 1), "speed_kms": round(speed_kms, 2),
-                                "period_min": round(2 * math.pi * (alt_km + 6371)**1.5 / math.sqrt(398600.4 * (alt_km + 6371)) / 60, 1),
-                                "ground_track": compute_ground_track(sat_rec, jd_now),
-                                "over_south_asia": (bbox["lat_min"] <= lat <= bbox["lat_max"] and bbox["lon_min"] <= lon <= bbox["lon_max"]),
-                                "computed_at": now_utc.isoformat() + "Z",
-                            })
-            except Exception as exc:
-                logger.debug(f"[Satellites] Individual query failed for {sat_info['name']}: {exc}")
+        sat_rec = Satrec.twoline2rv(tle1, tle2)
+        result  = _propagate(sat_rec, jd_now, sat_info)
+        if result:
+            results.append(result)
 
     over_count = sum(1 for s in results if s.get("over_south_asia"))
     logger.info(f"[Satellites] {len(results)} satellites computed, {over_count} over South Asia")
